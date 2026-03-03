@@ -53,6 +53,7 @@ foreach ($user in $users) {
         }
     } | ConvertTo-Json -Depth 3
 
+    # this tries to invoke the web request
     try {
     $response = Invoke-WebRequest `
         -Uri "https://liquidfiles.gha.net.au/message" `
@@ -87,7 +88,7 @@ foreach ($user in $users) {
     $lineCount++
 }
 
-# After the loop, display summary
+# after the loop display a summary of failed lines (maybe implement showing the service request number or email)
 if ($failedLines.Count -gt 0) {
     Write-Host "`nThe following lines failed to send:"
     
