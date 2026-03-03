@@ -11,18 +11,6 @@ $csvPath = Join-Path -Path (Get-Location) -ChildPath "users.csv"
 $users = Import-Csv -Path $csvPath
 
 foreach ($user in $users) {
-    $response = $null
-
-    $email              = $null
-    $ADusername         = $null
-    $ADpassword         = $null
-    $IPMusername        = $null
-    $IPMpassword        = $null
-    $EMRusername        = $null
-    $EMRpassword        = $null
-    $BOSSNETusername    = $null
-    $BOSSNETpassword    = $null
-    $ServiceRequest     = $null
     $messageText        = ""
 
     $email              = $user.'requesters email'
@@ -85,7 +73,7 @@ foreach ($user in $users) {
             if ($errorMessage) {
                 Write-Host "Error: $errorMessage"
             } else {
-                Write-Host "Unknown Error"
+                Write-Host "Unk nown Error"
             }
         }
     }
