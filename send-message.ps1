@@ -10,6 +10,10 @@ $encodedCredentials = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(
 $csvPath = Join-Path -Path (Get-Location) -ChildPath "users.csv"
 $users = Import-Csv -Path $csvPath
 
+# used to identify what line successfully sent and what line had an error
+$lineCount = 2
+$failedLines = @()
+
 foreach ($user in $users) {
     $messageText        = ""
 
@@ -27,6 +31,8 @@ foreach ($user in $users) {
     # checks if email is epmpty, skips if theres none and gives output
     if (-not $email -or $email.Trim() -eq "") {
         Write-Host "Skipping row with no email"
+        $lineCount++
+        $failedLines += $lineCount
         continue
     }
     
@@ -58,14 +64,15 @@ foreach ($user in $users) {
         } `
         -Body $body
     } catch {
-        $errorMessage = $_.Exception.Message
+        $errorMessage = "Line $($lineCount): $($_.Exception.Message)"
+        $failedLines += $lineCount
 
         $response = New-Object PSObject
         $response | Add-Member NoteProperty StatusCode 0
     }
     # send the correct status to terminal without long error message
     switch ($response.StatusCode) {
-        200 { Write-Host "Liquidfiles sent successfully" }
+        200 { Write-Host "Line $($lineCount): Liquidfiles sent successfully" }
         401 { Write-Host "Unauthorized, API key or User authentication failed" }
         422 { Write-Host "Something went wrong and the request could not be completed (Email and/or password incorrect, invalid file, invalid message)" }
         500 { Write-Host "Something went very wrong. This could happen if the system is expecting a value between 0-100 and you send a 1Mb picture of a cat, and similar situations." }
@@ -77,6 +84,19 @@ foreach ($user in $users) {
             }
         }
     }
+    $lineCount++
 }
+
+# After the loop, display summary
+if ($failedLines.Count -gt 0) {
+    Write-Host "`nThe following lines failed to send:"
+    
+    for ($i = 0; $i -lt $failedLines.Count; $i++) {
+        Write-Host "Line $($failedLines[$i])"
+    }
+} else {
+    Write-Host "`nAll lines sent successfully."
+}
+
 $filepath = Join-Path -Path (Get-Location) -ChildPath "users.csv"
 Remove-Item -Path $filepath -Force
