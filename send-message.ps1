@@ -99,5 +99,6 @@ if ($failedLines.Count -gt 0) {
     Write-Host "`nAll lines sent successfully."
 }
 
+# delete the csv after it is done so that there is no accidental resending of the same information
 $filepath = Join-Path -Path (Get-Location) -ChildPath "users.csv"
 Remove-Item -Path $filepath -Force
