@@ -82,6 +82,50 @@ function printFullResult($result) {
     [void](printList($result.users_without_ad))
 }
 
+# switch case functions
+# -------------------------------------------------------------
+
+# gets the csv path
+function getCSVPath {
+    [void](printPathMenu)
+
+    return Read-Host -Prompt " > "
+}
+
+function getCSVType {
+    [void](printCSVSelectMenu)
+
+    $user_input = Read-Host -Prompt " > "
+
+    switch ($user_input) {
+        1 { return 2 }
+        2 { return 3 }
+        default {
+            Write-Host "Invalid Input, Please Try Again!"
+            return 1
+        }
+    }
+}
+
+function runUsernameCheck($csv_path) {
+    $usernames = getCSVUsernames($csv_path)
+
+    $result = checkUsernames($usernames)
+
+    printFullResult($result)
+}
+
+function runNameCheck($csv_path) {
+    $names = getFirstAndLastNames($csv_path)
+
+    $usernames = convertFirstAndLastToUsername($names)
+
+    $result = checkUsernames($usernames)
+
+    printFullResult($result)
+}
+
+
 # main function
 # -------------------------------------------------------------
 
@@ -98,44 +142,18 @@ function main {
     while ($true){
         switch ($case) {
             0 {
-                # prompts user to enter csv path
-                [void](printPathMenu)
-
-                $csv_path = Read-Host -Prompt " > "
-
+                $csv_path = getCSVPath
                 $case = 1
             }
             1 {
-                # prompts user to enter csv type
-                [void](printCSVSelectMenu)
-                $user_input = Read-Host -Prompt " > "
-
-                if      ($user_input -eq 1) {$case = 2}
-                elseif  ($user_input -eq 2) {$case = 3}
-                else                        {Write-Host "Invalid Input, Please Try Again!"}
-                
+                $case = getCSVType
             }
             2 {
-                # this is the case for using usernames
-                $usernames = getCSVUsernames($csv_path)
-
-                $result = checkUsernames($usernames)
-
-                printFullResult($result)
-
+                runUsernameCheck $csv_path
                 $case = 4
-
             }
             3 {
-                # this is the case if using first and last name
-                $names = getFirstAndLastNames($csv_path)
-
-                $usernames = convertFirstAndLastToUsername($names)
-
-                $result = checkUsernames($usernames)
-
-                printFullResult($result)
-
+                runNameCheck $csv_path
                 $case = 4
             }
             4 {
