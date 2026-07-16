@@ -1,6 +1,6 @@
 # variables for api key
 # grab the api key from liquidfiles
-$apikey = "0aDaaY3xmO95FRIIqQd0Sd"
+$apikey = ""
 # credential encoding
 $pair = "$($apikey):$()"
 $encodedCredentials = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pair))
