@@ -1,15 +1,19 @@
-function checkUsernames([string]$csv_path) {
+function getCSVUsernames([string]$csv_path) {
     # get the usernames from the csv
     $usernames = Import-Csv -Path $csv_path
 
+    # returns a list of usernames
+    return $usernames.usernames
+}
+
+# checks a list of usernames
+function checkUsernames($usernames) {
     # initialise the empty lists
     $users_with_ad = @()
     $users_without_ad = @()
 
     # loop through all usernames in the csv
-    foreach ($row in $usernames) {
-        $user = $row.usernames
-
+    foreach ($user in $usernames) {
         # add user to the correct list
         if (Get-ADUser -Filter "SamAccountName -eq '$user'" -ErrorAction SilentlyContinue) {
             $users_with_ad += $user
@@ -23,6 +27,9 @@ function checkUsernames([string]$csv_path) {
         users_without_ad = $users_without_ad
     }
 }
+
+# print functions
+# -------------------------------------------------------------
 
 function printTitleCard {
     Write-Host "------------------------------------------------------------"
@@ -43,7 +50,7 @@ function printCSVSelectMenu {
 
 function printList($list) {
     foreach ($item in $list) {
-        Write-Host " > $($item)"
+        Write-Host "$($item)"
     }
 }
 
@@ -56,6 +63,9 @@ function printFullResult($result) {
     Write-Host "`n`Users Without AD:"
     [void](printList($result.users_without_ad))
 }
+
+# main function
+# -------------------------------------------------------------
 
 function main {
     Clear-Host
@@ -89,7 +99,9 @@ function main {
             }
             2 {
                 # this is the case for using usernames
-                $result = checkUsernames($csv_path)
+                $usernames = getCSVUsernames($csv_path)
+
+                $result = checkUsernames($usernames)
 
                 printFullResult($result)
 
@@ -98,12 +110,12 @@ function main {
             }
             3 {
                 # this is the case if using first and last name
-                Write-Host "`n`This is not implemented yet, sending to main..."
-                $case = 1
+
+                $case = 4
             }
             4 {
                 # exit case
-                Write-Host "Exiting Program"
+                Write-Host "`n`Exiting Program"
                 return
             }
             default {
