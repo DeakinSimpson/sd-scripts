@@ -6,6 +6,24 @@ function getCSVUsernames([string]$csv_path) {
     return $usernames.usernames
 }
 
+function getFirstAndLastNames($csv_path) {
+    $csv = Import-Csv -Path $csv_path
+
+    # returns the raw csv with first and last names
+    return $csv
+}
+
+function convertFirstAndLastToUsername($first_and_last_csv) {
+    $usernames = @()
+
+    foreach ($row in $first_and_last_csv) {
+        $username = $row.first_name + "." + $row.last_name
+        $usernames += $username
+    }
+
+    return $usernames
+}
+
 # checks a list of usernames
 function checkUsernames($usernames) {
     # initialise the empty lists
@@ -26,13 +44,6 @@ function checkUsernames($usernames) {
         users_with_ad = $users_with_ad
         users_without_ad = $users_without_ad
     }
-}
-
-function getFirstAndLastNames($csv_path) {
-    $csv = Import-Csv -Path $csv_path
-
-    # returns the raw csv with first and last names
-    return $csv
 }
 
 # print functions
@@ -117,6 +128,13 @@ function main {
             }
             3 {
                 # this is the case if using first and last name
+                $names = getFirstAndLastNames($csv_path)
+
+                $usernames = convertFirstAndLastToUsername($names)
+
+                $result = checkUsernames($usernames)
+
+                printFullResult($result)
 
                 $case = 4
             }
