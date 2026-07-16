@@ -41,8 +41,20 @@ function printCSVSelectMenu {
 
 }
 
+function printList($list) {
+    foreach ($item in $list) {
+        Write-Host " > $($item)"
+    }
+}
+
 function printFullResult($result) {
-    Write-Host "Printing Results"
+    # print each user with AD account
+    Write-Host "`n`Users With AD:"
+    [void](printList($result.users_with_ad))
+
+    # print users without AD
+    Write-Host "`n`Users Without AD:"
+    [void](printList($result.users_without_ad))
 }
 
 function main {
