@@ -28,6 +28,13 @@ function checkUsernames($usernames) {
     }
 }
 
+function getFirstAndLastNames($csv_path) {
+    $csv = Import-Csv -Path $csv_path
+
+    # returns the raw csv with first and last names
+    return $csv
+}
+
 # print functions
 # -------------------------------------------------------------
 
