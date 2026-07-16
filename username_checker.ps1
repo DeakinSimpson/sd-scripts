@@ -1,4 +1,5 @@
-function importCSV([string]$csv_path) {
+# imports a csv from a path and checks for errors
+function importCSV($csv_path) {
     # check if path exists
     if (-not (Test-Path -Path $csv_path -PathType Leaf -ErrorAction SilentlyContinue)) {
         Write-Host "`n`$($csv_path) does not exist"
@@ -20,11 +21,16 @@ function importCSV([string]$csv_path) {
 function convertFirstAndLastToUsername($first_and_last_csv) {
     $usernames = @()
 
+    # for each first and last name pair
     foreach ($row in $first_and_last_csv) {
+        # combine into "first.last"
         $username = $row.first_name + "." + $row.last_name
+
+        # append to usernames list
         $usernames += $username
     }
 
+    # return the list of first.last usernamesS
     return $usernames
 }
 
@@ -44,6 +50,7 @@ function checkUsernames($usernames) {
         }
     }
 
+    # return an object of containing the first and last name
     return [PSCustomObject]@{
         users_with_ad = $users_with_ad
         users_without_ad = $users_without_ad
@@ -70,12 +77,14 @@ function printCSVSelectMenu {
 
 }
 
+# prints all items in a list
 function printList($list) {
     foreach ($item in $list) {
         Write-Host "$($item)"
     }
 }
 
+# prints the usernames that do and dont have AD accounts
 function printFullResult($result) {
     # print each user with AD account
     Write-Host "`n`Users With AD:"
@@ -154,17 +163,21 @@ function main {
     while ($true){
         switch ($case) {
             0 {
+                # gets the csv path
                 $csv_path = getCSVPath
                 $case = 1
             }
             1 {
+                # gets the method used
                 $case = getCSVType
             }
             2 {
+                # runs for usernames
                 runUsernameCheck($csv_path)
                 $case = 4
             }
             3 {
+                # runs for first and last name
                 runNameCheck $csv_path
                 $case = 4
             }
