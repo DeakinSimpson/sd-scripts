@@ -1,15 +1,19 @@
-function getCSVUsernames([string]$csv_path) {
-    # get the usernames from the csv
-    $usernames = Import-Csv -Path $csv_path
+function importCSV([string]$csv_path) {
+    # check if path exists
+    if (-not (Test-Path -Path $csv_path -PathType Leaf -ErrorAction SilentlyContinue)) {
+        Write-Host "`n`$($csv_path) does not exist"
+        return $null
+    }
 
-    # returns a list of usernames
-    return $usernames.usernames
-}
-
-function getFirstAndLastNames($csv_path) {
+    # import csv
     $csv = Import-Csv -Path $csv_path
 
-    # returns the raw csv with first and last names
+    # check if there is any data
+    if ($null -eq $csv) {
+        Write-Host "csv contains no data"
+        return $null
+    }
+
     return $csv
 }
 
@@ -108,21 +112,29 @@ function getCSVType {
 }
 
 function runUsernameCheck($csv_path) {
-    $usernames = getCSVUsernames($csv_path)
+    $csv = importCSV($csv_path)
 
-    $result = checkUsernames($usernames)
+    # only run if importCSV is successfull
+    if ($null -ne $csv) {
+        $usernames = $csv.usernames
 
-    printFullResult($result)
+        $result = checkUsernames($usernames)
+
+        printFullResult($result)
+    }
 }
 
 function runNameCheck($csv_path) {
-    $names = getFirstAndLastNames($csv_path)
+    $names = importCSV($csv_path)
 
-    $usernames = convertFirstAndLastToUsername($names)
+    # only run if importCSV is successfull
+    if ($null -ne $names) {
+        $usernames = convertFirstAndLastToUsername($names)
 
-    $result = checkUsernames($usernames)
+        $result = checkUsernames($usernames)
 
-    printFullResult($result)
+        printFullResult($result)
+    }
 }
 
 
@@ -149,7 +161,7 @@ function main {
                 $case = getCSVType
             }
             2 {
-                runUsernameCheck $csv_path
+                runUsernameCheck($csv_path)
                 $case = 4
             }
             3 {
