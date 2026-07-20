@@ -57,6 +57,59 @@ function checkUsernames($usernames) {
     }
 }
 
+# this is the list of OU names that disabled accounts sit in, make sure to make them the all lowercase version
+$disabled_ous = @(
+        "disabled",
+        "disabled users",
+        "terminated"
+    )
+
+# checks if each user is disabled
+function checkUserDisabled($usernames) {
+    $user_disable_status = @()
+
+    # loop through all usernames
+    foreach ($user in $usernames) {
+        $is_user_disabled = $false
+
+        # get the OU of the user
+        $ou_full_details = Get-ADUser -Filter "SamAccountName -eq '$user'" |
+        Select-Object @{
+            Name='OU'
+            Expression={
+                ($_.DistinguishedName -replace '^CN=.*?,') -replace ',DC=.*$'
+            }
+        }
+
+        # get the string of the OU
+        $ou_string = $ou_full_details.OU
+
+        # split ou sting at ',' giveing an array of split stings
+        $ou_split = $ou_string.split(",")
+
+        # loop through each character in the split string
+        foreach ($part in $ou_split) {
+            # remove the 'OU=' prefix
+            $part_removed_prefix = $part -replace "OU="
+
+            # convert to lowercase
+            $part_to_lower = $part_removed_prefix.ToLower()
+
+            # check each disabled term
+            foreach ($disabled_ou in $disabled_ous) {
+                # if the account is in one of the disabled ous, mark as disabled
+                if ($part_to_lower = $disabled_ou) {
+                    $is_user_disabled = $true
+                }
+            }
+        }
+
+        $user_disable_status += $is_user_disabled
+    }
+
+    return $user_disable_status
+}
+
 # print functions
 # -------------------------------------------------------------
 
@@ -129,6 +182,8 @@ function runUsernameCheck($csv_path) {
 
         $result = checkUsernames($usernames)
 
+        $disabled_status = checkUserDisabled($result.users_with_ad)
+
         printFullResult($result)
     }
 }
@@ -141,6 +196,10 @@ function runNameCheck($csv_path) {
         $usernames = convertFirstAndLastToUsername($names)
 
         $result = checkUsernames($usernames)
+
+        $disabled_status = checkUserDisabled($result.users_with_ad)
+        
+        Write-Host "Disabled Status = $($disabled_status.Count)"
 
         printFullResult($result)
     }

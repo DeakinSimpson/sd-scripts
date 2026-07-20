@@ -49,15 +49,15 @@ foreach ($user in $users) {
     } | ConvertTo-Json -Depth 3
     # this tries to invoke the web request
     try {
-    $response = Invoke-WebRequest `
-        -Uri "https://liquidfiles.gha.net.au/message" `
-        -Method POST `
-        -Headers @{
-            Authorization   = "Basic $encodedCredentials"
-            Accept          = "application/json"
-            "Content-Type"  = "application/json"
-        } `
-        -Body $body
+        $response = Invoke-WebRequest `
+            -Uri "https://liquidfiles.gha.net.au/message" `
+            -Method POST `
+            -Headers @{
+                Authorization   = "Basic $encodedCredentials"
+                Accept          = "application/json"
+                "Content-Type"  = "application/json"
+            } `
+            -Body $body
     } catch {
         $errorMessage = "Line $($lineCount): $($_.Exception.Message)"
         $failedLines += $lineCount
