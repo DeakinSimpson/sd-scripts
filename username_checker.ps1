@@ -181,7 +181,7 @@ function getCSVType {
 }
 
 function runUsernameCheck($csv_path) {
-    $csv = importCSV($csv_path)
+    $csv = importCSV $csv_path
 
     # only run if importCSV is successfull
     if ($null -ne $csv) {
@@ -196,7 +196,7 @@ function runUsernameCheck($csv_path) {
 }
 
 function runNameCheck($csv_path) {
-    $names = importCSV($csv_path)
+    $names = importCSV $csv_path
 
     # only run if importCSV is successfull
     if ($null -ne $names) {
@@ -237,7 +237,7 @@ function main {
             }
             2 {
                 # runs for usernames
-                runUsernameCheck($csv_path)
+                runUsernameCheck $csv_path
                 $case = 4
             }
             3 {
