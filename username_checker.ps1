@@ -70,7 +70,7 @@ function checkUserDisabled($usernames) {
 
     # loop through all usernames
     foreach ($user in $usernames) {
-        $is_user_disabled = $false
+        $is_user_disabled = "Enabled OU"
 
         # get the OU of the user
         $adUser = Get-ADUser -Filter "SamAccountName -eq '$user'" -Properties DistinguishedName
@@ -100,7 +100,7 @@ function checkUserDisabled($usernames) {
             foreach ($disabled_ou in $disabled_ous) {
                 # if the account is in one of the disabled ous, mark as disabled
                 if ($part_to_lower -eq $disabled_ou) {
-                    $is_user_disabled = $true
+                    $is_user_disabled = "Disabled OU"
                 }
             }
         }
