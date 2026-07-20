@@ -73,19 +73,20 @@ function checkUserDisabled($usernames) {
         $is_user_disabled = $false
 
         # get the OU of the user
-        $ou_full_details = Get-ADUser -Filter "SamAccountName -eq '$user'" |
-        Select-Object @{
-            Name='OU'
-            Expression={
-                ($_.DistinguishedName -replace '^CN=.*?,') -replace ',DC=.*$'
-            }
+        $adUser = Get-ADUser -Filter "SamAccountName -eq '$user'" -Properties DistinguishedName
+
+        if ($null -eq $adUser) {
+            Write-Warning "Couldn't find user '$user'"
+            $user_disable_status += $false
+            continue
         }
 
+
         # get the string of the OU
-        $ou_string = $ou_full_details.OU
+        $ou_string = ($adUser.DistinguishedName -replace '^CN=.*?,') -replace ',DC=.*$'
 
         # split ou sting at ',' giveing an array of split stings
-        $ou_split = $ou_string.split(",")
+        $ou_split = $ou_string -split ","
 
         # loop through each character in the split string
         foreach ($part in $ou_split) {
@@ -98,7 +99,7 @@ function checkUserDisabled($usernames) {
             # check each disabled term
             foreach ($disabled_ou in $disabled_ous) {
                 # if the account is in one of the disabled ous, mark as disabled
-                if ($part_to_lower = $disabled_ou) {
+                if ($part_to_lower -eq $disabled_ou) {
                     $is_user_disabled = $true
                 }
             }
@@ -130,22 +131,28 @@ function printCSVSelectMenu {
 
 }
 
-# prints all items in a list
-function printList($list) {
+# print the users
+function printAdUsers($list, $disabled_users) {
+    for ($i = 0; $i -lt $list.Count; $i++) {
+        Write-Host "$($list[$i]) - $($disabled_users[$i])"
+    }
+}
+
+function printNoAdUsers($list) {
     foreach ($item in $list) {
         Write-Host "$($item)"
     }
 }
 
 # prints the usernames that do and dont have AD accounts
-function printFullResult($result) {
+function printFullResult($result, $disabled_users) {
     # print each user with AD account
     Write-Host "`n`Users With AD:"
-    [void](printList($result.users_with_ad))
+    [void](printAdUsers $result.users_with_ad $disabled_users)
 
     # print users without AD
     Write-Host "`n`Users Without AD:"
-    [void](printList($result.users_without_ad))
+    [void](printNoAdUsers $result.users_without_ad)
 }
 
 # switch case functions
@@ -180,11 +187,11 @@ function runUsernameCheck($csv_path) {
     if ($null -ne $csv) {
         $usernames = $csv.usernames
 
-        $result = checkUsernames($usernames)
+        $result = checkUsernames $usernames
 
-        $disabled_status = checkUserDisabled($result.users_with_ad)
+        $disabled_status = checkUserDisabled $result.users_with_ad
 
-        printFullResult($result)
+        printFullResult $result $disabled_status
     }
 }
 
@@ -193,16 +200,14 @@ function runNameCheck($csv_path) {
 
     # only run if importCSV is successfull
     if ($null -ne $names) {
-        $usernames = convertFirstAndLastToUsername($names)
+        $usernames = convertFirstAndLastToUsername $names
 
-        $result = checkUsernames($usernames)
+        $result = checkUsernames $usernames
 
-        $disabled_status = checkUserDisabled($result.users_with_ad)
-        
-        Write-Host "Disabled Status = $($disabled_status.Count)"
+        $disabled_status = checkUserDisabled $result.users_with_ad
 
-        printFullResult($result)
-    }
+        printFullResult $result $disabled_status
+    } 
 }
 
 
