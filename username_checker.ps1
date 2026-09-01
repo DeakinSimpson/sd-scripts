@@ -17,7 +17,7 @@ function importCSV($csv_path) {
 
     return $csv
 }
-
+#TODO: check CSV headers are correct. Eg first_name, last_name
 function convertFirstAndLastToUsername($first_and_last_csv) {
     $usernames = @()
 
