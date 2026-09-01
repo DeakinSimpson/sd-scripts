@@ -71,6 +71,7 @@ function checkUserDisabled($usernames) {
     # loop through all usernames
     foreach ($user in $usernames) {
         $is_user_disabled = "Enabled OU"
+        $lrh = $false
 
         # get the OU of the user
         $adUser = Get-ADUser -Filter "SamAccountName -eq '$user'" -Properties DistinguishedName
@@ -96,6 +97,11 @@ function checkUserDisabled($usernames) {
             # convert to lowercase
             $part_to_lower = $part_removed_prefix.ToLower()
 
+            # lets just check if LRH OU while we are at it
+            if ($part_to_lower -eq "lrh") {
+                $lrh = $true
+            }
+
             # check each disabled term
             foreach ($disabled_ou in $disabled_ous) {
                 # if the account is in one of the disabled ous, mark as disabled
@@ -105,6 +111,9 @@ function checkUserDisabled($usernames) {
             }
         }
 
+        if ($lrh) {
+            $is_user_disabled += " - LRH"
+        }
         $user_disable_status += $is_user_disabled
     }
 
@@ -203,6 +212,8 @@ function runNameCheck($csv_path) {
         $usernames = convertFirstAndLastToUsername $names
 
         $result = checkUsernames $usernames
+
+        #TODO: $result= checkForLRH $result.users_with_ad
 
         $disabled_status = checkUserDisabled $result.users_with_ad
 
