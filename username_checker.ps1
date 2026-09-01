@@ -213,8 +213,6 @@ function runNameCheck($csv_path) {
 
         $result = checkUsernames $usernames
 
-        #TODO: $result= checkForLRH $result.users_with_ad
-
         $disabled_status = checkUserDisabled $result.users_with_ad
 
         printFullResult $result $disabled_status
