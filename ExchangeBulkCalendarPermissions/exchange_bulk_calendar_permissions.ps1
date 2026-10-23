@@ -1,11 +1,50 @@
+
 param (
-    [string]$Filepath = "nullptr",
-    [string]$Action = "nullptr",
-    [string]$Access = "nullptr",
-    [string]$ExchangeEmail = "nullptr"
+    [string]$Filepath = "NotProvided",
+    [string]$Action = "NotProvided",
+    [string]$Access = "NotProvided",
+    [string]$ExchangeEmail = "NotProvided",
+    [string]$Mode = "default"
 )
  
 # ----- GLOBAL DATA -----
+$WindowWidth = [Console]::WindowWidth
+$Users
+$Calendars
+ 
+function DebugOut
+{
+    param([string] $output)
+ 
+    if ($Mode -eq "Verbose")
+    {
+        Write-Host $output -ForegroundColor Magenta
+    }
+}
+ 
+function WriteJsonLog
+{
+    param(
+        [string]$Message,
+        [hashtable]$Details = @{},
+        [string]$Path = "C:\logs\exchange_bulk_logs.json"
+    )
+ 
+    $LogFolder = Split-Path -Path $Path -Parent
+    if (-not (Test-Path -Path $LogFolder))
+    {
+        New-Item -Path $LogFolder -ItemType Directory -Force | Out-Null
+    }
+ 
+    $LogEntry = [PSCustomObject]@{
+        Timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+        Message = $Message
+        Metadata  = $Details
+        ScriptUser = $env:USERNAME
+    }
+ 
+    $LogEntry | ConvertTo-Json -Depth 10 -Compress | Add-Content -Path $Path -Encoding utf8
+}
  
 # array of all valid access types
 $ValidActionTypes = @(
@@ -45,12 +84,63 @@ $ValidAccessTypes = @(
  
 # ----- FUNCTIONS -----
  
+function GetLineForHeading
+{
+    param([string]$Name, [string]$Value)
+ 
+    DebugOut "Starting to Get Line For Heading with Name: $($Name), Value: $($Value)"
+ 
+    $Text = "| $($Name): " + $Value
+    $TextLine = $Text + (" " * ($WindowWidth - $Text.Length - 1)) + "|"
+ 
+    Write-Host $TextLine
+}
+ 
+function WriteLine
+{
+    DebugOut "Starting to Write Line at Terminal Width: $($WindowWidth)"
+ 
+    $Line = "=" * $WindowWidth
+    Write-Host "$Line"
+}
+ 
+function WriteTitleRow
+{
+    $WindowWidth = [Console]::WindowWidth
+    $Title = "Exchange Bulk Calendar Script"
+ 
+    $TotalInnerSpace = $WindowWidth - 2
+    $LeftPadding = [math]::Max(0, [math]::Floor(($TotalInnerSpace - $Title.Length) / 2))
+    $RightPadding = [math]::Max(0, $TotalInnerSpace - $Title.Length - $LeftPadding)
+ 
+    $TitleRow = "|" + (" " * $LeftPadding) + $Title + (" " * $RightPadding) + "|"
+ 
+    Write-Host $TitleRow
+}
+ 
+function WriteHeading
+{
+    DebugOut "Writing title heading..."
+ 
+    if ($Mode -ne "Verbose") { Clear-Host }
+ 
+    WriteLine
+    WriteTitleRow
+    WriteLine
+    GetLineForHeading "Filepath" $Filepath
+    GetLineForHeading "Action" $Action
+    GetLineForHeading "Access" $Access
+    GetLineForHeading "Exchange Email" $ExchangeEmail
+    GetLineForHeading "Mode" $Mode
+    WriteLine
+}
+ 
 function CheckExcelModule
 {
     [CmdletBinding()]
     param ()
  
-    Write-Host "Starting Excel Module Check..." -ForegroundColor Magenta
+    DebugOut "Starting Excel Module Check..."
  
     # try to import excel sheet module
     if (-not (Get-Module -ListAvailable -Name ImportExcel))
@@ -59,6 +149,8 @@ function CheckExcelModule
         {
             Write-Host "User Does Not Have ImportExcel Installed, Installing Now..."
             Install-Module -Name ImportExcel -Scope CurrentUser -Force
+ 
+            DebugOut "Module Successfully Installed."
         }
         catch
         {
@@ -73,13 +165,17 @@ function GetFilepathFromUser
     Write-Host "Filepath was not provided, please provide a VALID filepath for the excel sheet to be processed:"
  
     $script:Filepath = Read-Host -Prompt ">"
+ 
+    DebugOut "Filepath retrieved from user..."
+ 
+    WriteHeading
 }
  
 function CheckFilePathExists
 {
-    Write-Host "Checking Filepath $($Filepath)..." -ForegroundColor Magenta
+    DebugOut "Checking Filepath $($Filepath)..."
  
-    if ($Filepath -eq "nullptr")
+    if ($Filepath -eq "NotProvided")
     {
         GetFilepathFromUser
     }
@@ -97,7 +193,7 @@ function GetExcelSheet
     [CmdletBinding()]
     param ($_Filepath)
    
-    Write-Host "Opening Excel Sheet..." -ForegroundColor Magenta
+    DebugOut "Opening Excel Sheet..."
  
     # try to open the file path
     try
@@ -120,7 +216,7 @@ function GetUsersAndCalendars
     CheckFilePathExists $Filepath
     $excel_sheet = GetExcelSheet $Filepath
  
-    Write-Host "Getting Users and Calendars from Excel Sheet" -ForegroundColor Magenta
+    DebugOut "Getting Users and Calendars from Excel Sheet"
  
     # get the users and calendars from the excel sheet
     $Users = $excel_sheet.UserEmail
@@ -133,6 +229,8 @@ function GetUsersAndCalendars
         throw "Invalid Excel Sheet Format Process Halted"
     }
  
+    DebugOut "Returning Users and Calenders as PSCustomObject"
+ 
     [PSCustomObject]@{
         Users = $Users
         Calendars = $Calendars
@@ -141,10 +239,13 @@ function GetUsersAndCalendars
  
 function GetActionFromUser
 {
-    Write-Host "Please Select one of the following option (input integer):"
+    DebugOut "Action was not provided, requesting action from user"
+ 
+    Write-Host "`nPlease Select one of the following option (input integer):"
  
     [int]$choice = -1
  
+    DebugOut "Starting to display each Action available"
     for ($i = 0; $i -le $ValidActionTypes.Count - 1; $i++)
     {
         Write-Host "    $($i) $($ValidActionTypes[$i])"
@@ -153,44 +254,38 @@ function GetActionFromUser
     try
     {
         $choice = Read-Host -Prompt ">"
- 
+       
+        DebugOut "Input was a number, checking to see if it is in range"
         if (($choice -lt 0) -or ($choice -ge $ValidActionTypes.Count))
         {  
             Write-Warning "Value Provided not on list"
             throw "Number Provided Out of Range Process Halted"
         }
  
-        return $ValidActionTypes[$choice]
+        DebugOut "Updating $script:Action"
+        $script:Action = $ValidActionTypes[$choice]
+ 
+        WriteHeading
     }
     catch
     {
         Write-Warning "Invalid Input"
         throw "Invalid Input Process Halted"
     }
- 
-    return [string]""
 }
  
-function VerifyAndReturnAction
+function VerifyAction
 {
-    [CmdletBinding()]
-    param ([string]$_Action)
+    DebugOut "Starting to Verify And Return Action"
  
-    Write-Host "Starting to Verify And Return Action" -ForegroundColor Magenta
- 
-    if ($_Action -eq "nullptr")
-    {
-        $_Action = GetActionFromUser
-    }
+    if ($Action -eq "NotProvided") { GetActionFromUser }
  
     # check if the Action type provided is valid
-    if (-not ($_Action -in $ValidActionTypes))
+    if (-not ($script:Action -in $ValidActionTypes))
     {
         Write-Warning "Invalid Action Provided"
         throw "Invalid Action Provided Process Halted"
     }
- 
-    return $_Action
 }
  
 function GetAccessFromUser
@@ -214,37 +309,33 @@ function GetAccessFromUser
             throw "Number Provided Out of Range Process Halted"
         }
  
-        return $ValidAccessTypes[$choice]
+        $script:Access = $ValidAccessTypes[$choice]
+ 
+        WriteHeading
     }
     catch
     {
         Write-Warning "Invalid Input"
         throw "Invalid Input Process Halted"
     }
- 
-    return [string]""
 }
  
 function VerifyAndReturnAccess
 {
-    param([string]$_Access, [string]$_Action)
- 
-    Write-Host "Starting to Verify And Return Access" -ForegroundColor Magenta
+    DebugOut "Starting to Verify And Return Access"
  
     # Check that Access was proveded for AddAccess type
-    if (($_Action -eq "AddAccess") -and ($_Access -eq "nullptr"))
+    if (($Action -eq "AddAccess") -and ($Access -eq "NotProvided"))
     {
-        $_Access = GetAccessFromUser
+        GetAccessFromUser
     }
  
     # if adding access, check that the access type provided is valid
-    if (($_Action -eq "AddAccess") -and (-not ($_Access -in $ValidAccessTypes)))
+    if (($Action -eq "AddAccess") -and (-not ($Access -in $ValidAccessTypes)))
     {
         Write-Warning "Invalid Access Type Provided"
         throw "Invalid Access Type Provieded Process Halted"
     }
- 
-    return $_Access
 }
  
 function CheckAndInstallExchangeModule
@@ -261,40 +352,35 @@ function GetExchangeEmail
 {
     Write-Host "Exchange Email not provided, please provide an email to connect to the exchange server: "
  
-    $exchangeEmail = Read-Host -Prompt "<"
+    $script:ExchangeEmail = Read-Host -Prompt ">"
  
-    return $exchangeEmail;
+    WriteHeading
 }
  
 function VerifyAndGetExchangeEmail
 {
-    param([string]$_ExchangeEmail)
- 
     # check that exchange email was provided
-    if ($ExchangeEmail -eq "nullptr")
+    if ($ExchangeEmail -eq "NotProvided")
     {
-        $_ExchangeEmail = GetExchangeEmail
+        GetExchangeEmail
     }
- 
-    return $_ExchangeEmail
 }
  
 function EstablishExchangeConnection
 {
-    param([string]$_exchangeEmail)
- 
     CheckAndInstallExchangeModule
  
     # import the exchange module
     Import-Module ExchangeOnlineManagement
  
-    $_exchangeEmail = VerifyAndGetExchangeEmail $_exchangeEmail
+    VerifyAndGetExchangeEmail
  
     # connect via exchange email
     try
     {
-        Write-Host "Connecting to Echange Online as $($_exchangeEmail)..." -ForegroundColor Green
-        Connect-ExchangeOnline -UserPrincipalName $_exchangeEmail -ShowBanner:$false
+        Write-Host "Connecting to Echange Online as $($ExchangeEmail)..." -ForegroundColor Green
+        Connect-ExchangeOnline -UserPrincipalName $ExchangeEmail -ShowBanner:$false
+        WriteJsonLog -Message "Connect to Exchange" -Details @{User = $ExchangeEmail}
         Write-Host "Successfully Connected to Exchange Online." -ForegroundColor Green
     }
     catch
@@ -312,6 +398,10 @@ function CheckMailboxesExist
     {
         if ($mailbox -eq $null) { continue }
  
+        WriteJsonLog -Message "Check Mailbox" -Details @{
+            MailboxBeingChecked = "$mailbox"
+            CommandRun = "Get-Recipient -Identity $mailbox -ErrorAction SilentlyContinue"
+        }
         $recipient = Get-Recipient -Identity $mailbox -ErrorAction SilentlyContinue
  
         if ($recipient -and $recipient.RecipientTypeDetails -match "Mailbox")
@@ -339,6 +429,13 @@ function CheckAccess
  
         $calendarPermissions = $null
  
+        WriteJsonLog -Message "Check Access" -Details @{
+            CommandRun = 'Get-MailboxFolderPermission -Identity "$($user):\Calendar" -ErrorAction SilentlyContinue'
+            CommandDetails = @{
+                UsersAccessWhoWasChecked = $user
+                FolderChecked = "Calendar"
+            }
+        }
         $calendarPermissions = Get-MailboxFolderPermission -Identity "$($user):\Calendar" -ErrorAction SilentlyContinue
  
         if ($calendarPermissions)
@@ -354,6 +451,13 @@ function CheckAccess
  
         $deletedItemsPermissions = $null
  
+        WriteJsonLog -Message "Check Access" -Details @{
+            CommandRun = 'Get-MailboxFolderPermission -Identity "$($user):\Deleted Items" -ErrorAction SilentlyContinue'
+            CommandDetails = @{
+                UsersAccessWhoWasChecked = $user
+                FolderChecked = "Deleted Items"
+            }
+        }
         $deletedItemsPermissions = Get-MailboxFolderPermission -Identity "$($user):\Deleted Items" -ErrorAction SilentlyContinue
  
         if ($deletedItemsPermissions)
@@ -369,59 +473,31 @@ function CheckAccess
     }
 }
  
-function RemoveCalendarAccess
+function RemoveFolderAccess
 {
-    param($_users, $_calendars)
+    param($_users, $_calendars, $_folder)
  
     foreach ($cal in $_calendars)
     {
         if ($cal -eq $null) { continue }
  
-        Write-Host "`nRemoving Access to $($cal) Calendar:"
+        Write-Host "`nRemoving Access to $($cal) $($_folder):"
  
         foreach ($user in $_users)
         {
             if ($user -eq $null) { continue }
  
             try {
-                Remove-MailboxFolderPermission -Identity "$($cal):\Calendar" -User "$($user)" -Confirm:$false -ErrorAction Stop
-                Write-Host "$($user) Successfully had Permissions to $($cal) Calendar Removed" -ForegroundColor Green
-            }
-            catch {
-                $errorString = $_.ToString()
- 
-                if (($errorString -like "*no existing permission*") -or
-                    ($errorString -like "*ManagementObjectNotFoundException*"))
-                {
-                    Write-Host "$($user) Did not have permissions to $($cal)" -ForegroundColor Yellow
+                WriteJsonLog -Message "Removed Access" -Details @{
+                    CommandRun = 'Remove-MailboxFolderPermission -Identity "$($cal):\$($_folder)" -User "$($user)" -Confirm:$false -ErrorAction Stop'
+                    CommandDetails = @{
+                        UserWhoHadAccessRemoved = $user
+                        UserWhoIsTheOwnerOfTheFolder = $cal
+                        Folder = $_folder
+                    }
                 }
-                else
-                {
-                    Write-Host "A different error occurred: $_" -ForegroundColor Red
-                    throw "Failed To Remove Permissions Process Halted"
-                }
-            }
-        }
-    }
-}
- 
-function RemoveDeletedItemsAccess
-{
-    param($_users, $_calendars)
- 
-    foreach ($cal in $_calendars)
-    {
-        if ($cal -eq $null) { continue }
- 
-        Write-Host "`nRemoving Access to $($cal) Deleted Items:"
- 
-        foreach ($user in $_users)
-        {
-            if ($user -eq $null) { continue }
- 
-            try {
-                Remove-MailboxFolderPermission -Identity "$($cal):\Deleted items" -User "$($user)" -Confirm:$false -ErrorAction Stop
-                Write-Host "$($user) Successfully had Permissions to $($cal) Deleted Items Removed" -ForegroundColor Green
+                Remove-MailboxFolderPermission -Identity "$($cal):\$($_folder)" -User "$($user)" -Confirm:$false -ErrorAction Stop
+                Write-Host "$($user) Successfully had Permissions to $($cal) $($_folder) Removed" -ForegroundColor Green
             }
             catch {
                 $errorString = $_.ToString()
@@ -445,25 +521,35 @@ function RemoveAllAccess
 {
     param($_users, $_calendars)
  
-    RemoveCalendarAccess $_users $_calendars
-    RemoveDeletedItemsAccess $_users $_calendars
+    RemoveFolderAccess $_users $_calendars "Calendar"
+    RemoveFolderAccess $_users $_calendars "Deleted Items"
 }
  
 function AddPermission {
     param(
-        [string]$_identity,
+        [string]$_folder_user,
+        [string]$_folder,
         [string]$_user,
         [string]$_accessRights
     )
     try {
-        Add-MailboxFolderPermission -Identity $_identity -User $_user -AccessRights $_accessRights -ErrorAction Stop
+        WriteJsonLog -Message "Add Access" -Details @{
+            CommandRun = 'Add-MailboxFolderPermission -Identity "$($_folder_user):\$($_folder)" -User $_user -AccessRights $_accessRights -ErrorAction Stop'
+            CommandDetails = @{
+                UserWhoGainedAccess = $_user
+                OwnerOfFolderGivenAccessTo = $_folder_user
+                Folder = $_folder
+                AccessRights = $_accessRights
+            }
+        }
+        Add-MailboxFolderPermission -Identity "$($_folder_user):\$($_folder)" -User $_user -AccessRights $_accessRights -ErrorAction Stop
     }
     catch {
         if ($_.Exception.Message -like "*existing permission entry*" -or $_.ToString() -like "*existing permission entry*") {
-            Write-Host "   Already Has Access to: $_identity" -ForegroundColor Yellow
+            Write-Host "   Already Has Access to: $_folder_user" -ForegroundColor Yellow
         }
         else {
-            Write-Host "   Uncaught Error on $($_identity): $_" -ForegroundColor Red
+            Write-Host "   Uncaught Error on $($_folder_user): $_" -ForegroundColor Red
             throw
         }
     }
@@ -487,23 +573,27 @@ function AddAccess
            
             if ($_access -eq "DeletedItems")
             {
-                AddPermission "$($cal):\Deleted Items" "$($user)" Editor
+                AddPermission $cal "Deleted Items" $user Editor
             } elseif ($_access -eq "EditorAndDeleted")
             {
                 # add editor permisions
-                AddPermission "$($cal):\Calendar" "$($user)" Editor
+                AddPermission $cal "Calendar" $user Editor
  
                 # add deleted items folder permisions
-                AddPermission "$($cal):\Deleted Items" "$($user)" Editor
+                AddPermission $cal "Deleted Items" $user Editor
             } else
             {
-                AddPermission "$($cal):\Calendar" "$($user)" Editor
+                AddPermission $cal "Calendar" $user Editor
             }
         }
     }
 }
  
 # ---- CODE -----
+WriteHeading
+ 
+# connect to exchange
+EstablishExchangeConnection
  
 # get the excel sheet rows
 $ExcelSheetResult = GetUsersAndCalendars $Filepath
@@ -511,11 +601,10 @@ $Users = $ExcelSheetResult.Users
 $Calendars = $ExcelSheetResult.Calendars
  
 # get what needs to be performed to the mailboxes
-$Action = VerifyAndReturnAction $Action
-$Access = VerifyAndReturnAccess $Access $Action
+VerifyAction
+VerifyAndReturnAccess
  
-# connect to exchange
-EstablishExchangeConnection $ExchangeEmail
+ 
  
 # check each user email exists
 Write-Host "`nChecking Each User Has an Exchange Online Mailbox..."
@@ -528,33 +617,16 @@ CheckMailboxesExist $Calendars
 # run excecution query for all users and all calendars
     # log all action results
  
-if ($Action -eq "CheckAccess")
+switch ($Action)
 {
-    CheckAccess $Users
-}
- 
-if ($Action -eq "RemoveCalendarAccess")
-{
-    RemoveCalendarAccess $Users $Calendars
-}
- 
-if ($Action -eq "RemoveDeletedItemsAccess")
-{
-    RemoveDeletedItemsAccess $Users $Calendars
-}
- 
-if ($Action -eq "RemoveAllAccess")
-{
-    RemoveAllAccess $Users $Calendars
-}
- 
-if ($Action -eq "AddAccess")
-{
-    AddAccess $Users $Calendars $Access
+    "CheckAccess"               { CheckAccess $Users }
+    "RemoveCalendarAccess"      { RemoveCalendarAccess $Users $Calendars }
+    "RemoveDeletedItemsAccess"  { RemoveDeletedItemsAccess $Users $Calendars }
+    "RemoveAllAccess"           { RemoveAllAccess $Users $Calendars }
+    "AddAccess"                 { AddAccess $Users $Calendars $Access }
 }
  
 # TODO:
-    # when voiding a parameter, prompt the user to enter it and provide a list
     # try and implement display names rather then emails
     # try and implement display name searching for calendars rather then email
     # allow for the option to only select one email (no csv)
